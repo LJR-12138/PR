@@ -1,4 +1,3 @@
-```markdown:c:\Users\兰景茹\Desktop\Fur-seal face recognition\docs\REPORT.md
 # 海狗（毛皮海豹）人脸检测与识别项目报告
 
 作者：项目组｜日期：2025-11-10｜仓库：`fur-seal face recognition`
@@ -167,5 +166,3 @@ pip install -e .[dev]
   - https://github.com/tulip-lab/furseal/tree/main/datasets
 
 ---
-本报告对应的代码与可运行脚本均已在仓库中实现与验证；若需要，我们可进一步补充录屏素材与演示 PPT，并按上述"演示脚本"录制 7–8 分钟视频。
-```
