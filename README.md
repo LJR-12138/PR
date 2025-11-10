@@ -1,4 +1,4 @@
-# Fur Seal Face Intelligence Toolkit
+# Fur-seal face recognition
 
 An end-to-end research pipeline for fur-seal face **detection**, **recognition**, and **behavior informatics**. The project leverages transfer learning on modern vision backbones and geospatial analytics to transform raw expedition imagery into actionable insights on fur-seal populations around Victoria.
 
