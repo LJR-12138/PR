@@ -1,4 +1,3 @@
-```markdown:c:\Users\兰景茹\Desktop\Fur-seal face recognition\README.md
 # Fur Seal Face Intelligence Toolkit
 
 An end-to-end research pipeline for fur-seal face **detection**, **recognition**, and **behavior informatics**. The project leverages transfer learning on modern vision backbones and geospatial analytics to transform raw expedition imagery into actionable insights on fur-seal populations around Victoria.
@@ -212,5 +211,3 @@ The visualization is saved to `outputs/embeddings/identity_analysis.png`.
 .\.venv\Scripts\python.exe -m scripts.view_identities
 ```
 
-如需可重复配置与更完整流程，请参考上文 "Command Line Recipes" 中带 `--config configs\local.yaml` 的命令或直接运行 `scripts.run_demo`。
-```
