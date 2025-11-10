@@ -1,12 +1,22 @@
+```markdown:c:\Users\兰景茹\Desktop\Fur-seal face recognition\docs\REPORT.md
 # 海狗（毛皮海豹）人脸检测与识别项目报告
 
-作者：项目组｜日期：2025-11-04｜仓库：`fur-seal face recognition`
+作者：项目组｜日期：2025-11-10｜仓库：`fur-seal face recognition`
+
+注：文档更新（2025-11-10）：同步近期工程迭代 —— 在推理端加入高分辨率与 TTA、实现并测试了 `hog-pca` 与 `color-hist` 两个轻量级 embedding 后端（`color-hist` 作为当前默认），并新增逐分钟演示脚本 `docs/DEMO_SCRIPT.md` 供录屏使用。
+
+摘要部分更新（2025-11-10）：
+- 检测模块：推理分辨率提升至1024，加入TTA和IoU后处理去重，有效改善了"大脸漏检"和"同脸多框"问题
+- 识别模块：实现了三种特征提取方法（FaceNet、HOG+PCA、Color Histogram），在当前数据规模下Color Histogram表现最佳
+- 行为分析：利用EXIF/GPS元数据成功生成共现图谱和统计报告
+- 可视化工具：新增可视化分析工具，可生成聚类结果的详细图表和统计信息
 
 ## 摘要
 本项目面向维多利亚州多岛屿拍摄的野外海狗照片，构建了完整的人脸检测、个体识别与行为信息学分析流水线：
-- 人脸检测：以 YOLOv8s 为骨干，针对海狗脸数据微调并在推理阶段结合更高分辨率（1024）、TTA 与后处理 IoU 去重，显著缓解“同脸多框”和“大脸漏检”问题。
+- 人脸检测：以 YOLOv8s 为骨干，针对海狗脸数据微调并在推理阶段结合更高分辨率（1024）、TTA 与后处理 IoU 去重，显著缓解"同脸多框"和"大脸漏检"问题。
 - 人脸识别：提取裁剪的人脸 patch 特征并进行无监督聚类以区分个体。考虑到小样本与域偏移，我们实现并对比了多种简洁稳健的 embedding 后端（FaceNet、HOG+PCA、颜色直方图），最终在当前数据规模下采用颜色直方图 + DBSCAN（余弦度量）取得相对稳定的聚类结果。
-- 行为信息学：利用照片的 EXIF/GPS 信息生成共现图谱与群体统计，回答“哪些海狗经常同时出现”“在相同图像上的同现关系”等问题。
+- 行为信息学：利用照片的 EXIF/GPS 信息生成共现图谱与群体统计，回答"哪些海狗经常同时出现""在相同图像上的同现关系"等问题。
+- 可视化分析：新增可视化工具，可生成聚类结果的详细图表和统计信息，便于分析和展示。
 
 在给定验证集上，YOLOv8s 微调后取得验证指标 P≈0.435 / R≈0.335 / mAP50≈0.329；推理端经 1024 分辨率与 IoU 去重增强后，明显大脸召回提升且重复框大幅减少。识别端在当前样本规模下形成 3 个有效簇与少量噪声，支撑基本的个体统计与共现图谱生成。
 
@@ -23,7 +33,7 @@
 - 推理增强：
   - 分辨率提升至 1024；
   - 轻量 TTA；
-  - 事后 IoU 去重（保留高置信度框，`post_nms_duplicate_iou=0.85`）抑制“同脸多框”。
+  - 事后 IoU 去重（保留高置信度框，`post_nms_duplicate_iou=0.85`）抑制"同脸多框"。
 - 关键脚本与文件：
   - 训练：`scripts/train_detector.py`（已完成训练；本阶段复现以推理为主）
   - 推理：`scripts/run_detection.py` → 输出到 `outputs/detections/latest/`
@@ -31,7 +41,7 @@
 
 ### 2.2 裁脸与特征（Recognition Embedding）
 - 裁脸：`src/recognition/face_extractor.py`
-  - 使用 YOLO 检测框裁剪，过滤极小框与低质量框；新增“重复框过滤”（同图内 IoU 高于阈值的候选仅保留置信度高的一个）。
+  - 使用 YOLO 检测框裁剪，过滤极小框与低质量框；新增"重复框过滤"（同图内 IoU 高于阈值的候选仅保留置信度高的一个）。
 - 特征后端：`src/recognition/embedding_model.py`
   - FaceNet-Inception（参考）、HOG+PCA（实现以备扩展）、颜色直方图（当前默认）三种方案；
   - 小样本下实测 FaceNet 在本域特征几乎一致，难以分簇；HOG+PCA 在本数据上距离等距倾向明显，DBSCAN 失败；颜色直方图对本数据的光照与花纹变化鲁棒性较好，聚类可用。
@@ -41,14 +51,24 @@
 - 实现：`src/recognition/cluster.py`，支持可选 FAISS 近邻预检（当前小样本关闭）。
 - 输出：`outputs/embeddings/identities.parquet`，记录每个裁脸 patch 的身份簇标签（-1 为噪声）。
 
-### 2.4 行为信息学（Behaviour Analytics）
+### 2.4 可视化分析（Visualization Analysis）
+- 工具：`scripts/view_identities.py`
+- 功能：
+  - 身份分布柱状图和饼图
+  - 检测置信度分布直方图
+  - 各身份置信度箱线图
+  - 每张图像面部数量分布图
+  - 数据统计汇总表
+- 输出：`outputs/embeddings/identity_analysis.png`，包含所有分析图表
+
+### 2.5 行为信息学（Behaviour Analytics）
 - EXIF 解析：读取时间戳与 GPS，经纬度转小数；
-- 共现图谱：以“同一张图像共同出现”为边（权重为共现次数，当前阈值 1）生成图谱，输出 GraphML；
+- 共现图谱：以"同一张图像共同出现"为边（权重为共现次数，当前阈值 1）生成图谱，输出 GraphML；
 - 统计报表：每身份的出现次数、最早/最晚出现时间等；
-- 脚本：`scripts/analyze_behaviour.py` → 输出到 `outputs/reports/`（`summary.html`, `population_summary.csv`, `cooccurrence.graphml`）。
+- 脚本：`scripts/analyze_behaviour.py` → 输出到 `outputs/reports/`（[summary.html](file://c:\Users\兰景茹\Desktop\Fur-seal%20face%20recognition\outputs\reports\summary.html), [population_summary.csv](file://c:\Users\兰景茹\Desktop\Fur-seal%20face%20recognition\outputs\reports\population_summary.csv), [cooccurrence.graphml](file://c:\Users\兰景茹\Desktop\Fur-seal%20face%20recognition\outputs\reports\cooccurrence.graphml)）。
 
 ## 3. 工程改进点汇总
-- 推理增强（解决“大脸漏检”和“同脸多框”）：
+- 推理增强（解决"大脸漏检"和"同脸多框"）：
   - imgsz=1024 + TTA，有效提升大脸近景召回；
   - 推理后 IoU 去重 + 裁脸阶段重复过滤，重复框显著减少；
 - 识别后端多备选并验证：保留 HOG+PCA / FaceNet 作为后备研究方向，目前以颜色直方图作为稳健默认；
@@ -63,19 +83,14 @@
 - 识别与聚类（基于裁脸 + 颜色直方图 + DBSCAN）：
   - 最新身份计数：id1≈24、id0≈2、id2≈2、噪声(-1)≈6（在当前小样本上较为稳定）；
 - 行为信息学：
-  - 生成 `summary.html` 与 `cooccurrence.graphml`，在 `min_cooccurrence=1` 下可见共现关系；
+  - 生成 [summary.html](file://c:\Users\兰景茹\Desktop\Fur-seal%20face%20recognition\outputs\reports\summary.html) 与 [cooccurrence.graphml](file://c:\Users\兰景茹\Desktop\Fur-seal%20face%20recognition\outputs\reports\cooccurrence.graphml)，在 `min_cooccurrence=1` 下可见共现关系；
+- 可视化分析：
+  - 成功生成包含身份分布、置信度统计等信息的综合分析图表；
 
 注：上述数值来自本地最新跑批日志与程序输出，因随机性和配置微调可能轻微波动。
 
-## 5. Demo 演示（7–8 分钟脚本建议）
-- 0:00–0:40 问题与数据：海狗保护背景、任务与数据来源（task_datasets）、挑战点（尺度变化、遮挡、相似花纹）。
-- 0:40–1:30 流水线概览：检测→裁脸→特征→聚类→行为图谱，展示 `configs/local.yaml` 关键段落。
-- 1:30–2:10 检测模型：说明 YOLOv8s 微调要点与推理增强（1024 + TTA + IoU 去重）。
-- 2:10–3:10 现场推理：运行 `scripts/run_detection.py --split valid`，打开 `outputs/detections/latest/` 看图片与 labels。简述重复框抑制效果。
-- 3:10–4:10 裁脸与特征：展示 `outputs/faces/`，说明裁脸质量阈值与重复过滤；运行 `scripts/build_embeddings.py`。
-- 4:10–5:00 聚类与身份：运行 `scripts/cluster_identities.py`，打开 `outputs/embeddings/identities.parquet`（或打印 value_counts），展示身份数量与分布。
-- 5:00–6:30 行为分析：运行 `scripts/analyze_behaviour.py`，打开 `outputs/reports/summary.html` 与 `cooccurrence.graphml`，说明如何读图和答案示例（哪些海狗经常同时出现）。
-- 6:30–7:30 总结与展望：现状、局限（小样本/域偏移/特征弱监督）、未来工作（对齐、强特征、更多数据、半监督/度量学习）。
+## 5. Demo 演示
+查看DEMO_SCRIPT.md
 
 ## 6. 复现与运行指南（Windows/PowerShell）
 > 下列命令仅作文档记录，实际在本机已执行验证。
@@ -101,13 +116,19 @@ pip install -e .[dev]
 .\.venv\Scripts\python.exe -m scripts.build_embeddings
 .\.venv\Scripts\python.exe -m scripts.cluster_identities
 ```
-输出：`outputs/embeddings/embeddings.parquet` 与 `identities.parquet`。
+输出：`outputs/embeddings/embeddings.parquet` 与 [identities.parquet](file://c:\Users\兰景茹\Desktop\Fur-seal%20face%20recognition\outputs\embeddings\identities.parquet)。
+
+- 可视化分析
+```powershell
+.\.venv\Scripts\python.exe -m scripts.view_identities
+```
+输出：`outputs/embeddings/identity_analysis.png`，包含所有分析图表。
 
 - 行为分析
 ```powershell
 .\.venv\Scripts\python.exe -m scripts.analyze_behaviour
 ```
-输出：`outputs/reports/summary.html`, `population_summary.csv`, `cooccurrence.graphml`。
+输出：`outputs/reports/summary.html`, [population_summary.csv](file://c:\Users\兰景茹\Desktop\Fur-seal%20face%20recognition\outputs\reports\population_summary.csv), [cooccurrence.graphml](file://c:\Users\兰景茹\Desktop\Fur-seal%20face%20recognition\outputs\reports\cooccurrence.graphml)。
 
 - 可选：重新训练检测器（需标注数据集）
 ```powershell
@@ -118,7 +139,7 @@ pip install -e .[dev]
 - 一组给定的照片中有多少只海狗？
   - 可通过检测框数聚合得到每张图像的海狗脸数量；对于个体数量，需在同一图像去重（本项目已加入 IoU 去重）后计数。
 - 哪些海狗经常同时出现？
-  - 使用 `cooccurrence.graphml` 或 `summary.html` 中的共现列表，阈值（min_cooccurrence）可调；当前以同图像共现为边定义。
+  - 使用 [cooccurrence.graphml](file://c:\Users\兰景茹\Desktop\Fur-seal%20face%20recognition\outputs\reports\cooccurrence.graphml) 或 [summary.html](file://c:\Users\兰景茹\Desktop\Fur-seal%20face%20recognition\outputs\reports\summary.html) 中的共现列表，阈值（min_cooccurrence）可调；当前以同图像共现为边定义。
 - 这些同时出现的海狗之间的潜在关系是什么？
   - 结合共现频次与时间/地点（EXIF/GPS），可推测伴随关系或社群结构；需要更长时间序列和更多数据进行统计验证。
 
@@ -133,6 +154,9 @@ pip install -e .[dev]
 - 行为：
   - 增加时间窗、空间聚类（geohash/DBSCAN）分析群体迁徙规律；
   - 数据治理：检查 EXIF 缺失与 GPS 精度偏差。
+- 可视化：
+  - 增加更多类型的图表和分析维度；
+  - 支持交互式可视化界面。
 
 ## 9. 参考资料
 - YOLOv8: Ultralytics
@@ -143,4 +167,5 @@ pip install -e .[dev]
   - https://github.com/tulip-lab/furseal/tree/main/datasets
 
 ---
-本报告对应的代码与可运行脚本均已在仓库中实现与验证；若需要，我们可进一步补充录屏素材与演示 PPT，并按上述“演示脚本”录制 7–8 分钟视频。
+本报告对应的代码与可运行脚本均已在仓库中实现与验证；若需要，我们可进一步补充录屏素材与演示 PPT，并按上述"演示脚本"录制 7–8 分钟视频。
+```
